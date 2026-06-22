@@ -55,7 +55,7 @@ class _MicroScreenState extends State<MicroScreen> {
       final today = DateTime.now().toIso8601String().split('T')[0];
       final yearMonth = today.substring(0, 7);
 
-      // --- CRITICAL: Ensure User Exists (Foreign Key Requirement) ---
+      // --- CRITICAL: Ensure User Exists ---
       final userCount = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM users WHERE user_id = ?', ['default_user']));
       if (userCount == 0) {
         print('Seed: Creating default user...');
@@ -65,6 +65,15 @@ class _MicroScreenState extends State<MicroScreen> {
           'display_name': 'Tantr',
           'subscription_tier': 'premium',
         });
+      }
+
+      // --- CRITICAL: Ensure Master Data Exists (for Joins) ---
+      final channelMasterCount = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM sales_channel'));
+      if (channelMasterCount == 0) {
+        print('Seed: Re-seeding Master Channels...');
+        await db.insert('sales_channel', {'channel_key': 'tiktok_ads', 'display_name': 'TikTok Ads', 'channel_type': 'paid_channel', 'has_benchmark': 1, 'is_system_default': 1});
+        await db.insert('sales_channel', {'channel_key': 'facebook_ads', 'display_name': 'Facebook Ads', 'channel_type': 'paid_channel', 'has_benchmark': 1, 'is_system_default': 1});
+        await db.insert('sales_channel', {'channel_key': 'google_ads', 'display_name': 'Google Ads', 'channel_type': 'paid_channel', 'has_benchmark': 1, 'is_system_default': 1});
       }
 
       // --- Robust Initialization (Seed if configs empty) ---
@@ -94,33 +103,35 @@ class _MicroScreenState extends State<MicroScreen> {
       }
 
       // 1. Get Profile data
-      final profile = await db.query('business_profile', where: 'user_id = ?', whereArgs: ['default_user'], orderBy: 'effective_from DESC', limit: 1);
+      final profile = await db.query('business_profile', where: 'user_id = ? AND effective_from <= ?', whereArgs: ['default_user', today], orderBy: 'effective_from DESC', limit: 1);
       
       // 2. Get Target data
       final target = await db.query('monthly_target', where: 'user_id = ? AND year_month = ?', whereArgs: ['default_user', yearMonth]);
 
       // 3. Get Channel data (for AOV)
-      final channels = await db.query('user_channel_config', where: 'user_id = ?', whereArgs: ['default_user'], orderBy: 'effective_from DESC', limit: 1);
+      final channels = await db.query('user_channel_config', where: 'user_id = ? AND effective_from <= ?', whereArgs: ['default_user', today], orderBy: 'effective_from DESC', limit: 1);
 
       print('DB Check: Profile(${profile.length}), Target(${target.length}), Channels(${channels.length})');
 
       if (profile.isNotEmpty && target.isNotEmpty && channels.isNotEmpty) {
         final double currentAov = (channels.first['user_aov'] as num).toDouble();
         final double currentMargin = (profile.first['gross_margin_pct'] as num).toDouble();
+        final double currentRevenue = (target.first['target_revenue'] as num).toDouble();
+        final double currentCost = (profile.first['fixed_operating_cost'] as num ?? 0).toDouble();
+
+        print('Loaded Metrics: AOV=$currentAov, Margin=$currentMargin, Revenue=$currentRevenue');
         
         setState(() {
           _aov = currentAov;
           _grossMargin = currentMargin;
-          _fixedCost = (profile.first['fixed_operating_cost'] as num ?? 0).toDouble();
-          _targetRevenue = (target.first['target_revenue'] as num).toDouble();
+          _fixedCost = currentCost;
+          _targetRevenue = currentRevenue;
           _hasInputData = _aov > 0 && _grossMargin > 0;
         });
-      } else {
-        print('Warning: Incomplete business configuration in DB.');
       }
 
       final data = await ForecastService.instance.calculateReverseFunnel('default_user', yearMonth, referenceDate: today);
-      print('Forecast Logic Output: $data');
+      print('Forecast Service Result: $data');
       
       // Get current user category
       final userResult = await db.query('users', columns: ['business_type'], where: 'user_id = ?', whereArgs: ['default_user']);
@@ -397,12 +408,12 @@ Hãy đưa ra 1 lời khuyên chiến lược marketing ngắn gọn và đặc 
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
               child: const Text('Cập nhật', style: TextStyle(fontWeight: FontWeight.bold)),
-              onPressed: () {
+              onPressed: () async {
                 final double? newVal = double.tryParse(_revenueController.text);
                 if (newVal != null && newVal > 0) {
-                  _updateTargetRevenue(newVal);
+                  await _updateTargetRevenue(newVal);
                 }
-                Navigator.of(context).pop();
+                if (context.mounted) Navigator.of(context).pop();
               },
             ),
           ],

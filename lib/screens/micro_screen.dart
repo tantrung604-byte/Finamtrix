@@ -55,8 +55,20 @@ class _MicroScreenState extends State<MicroScreen> {
       final today = DateTime.now().toIso8601String().split('T')[0];
       final yearMonth = today.substring(0, 7);
 
-      // --- Robust Initialization (Seed if empty) ---
-      final configCount = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM user_channel_config'));
+      // --- CRITICAL: Ensure User Exists (Foreign Key Requirement) ---
+      final userCount = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM users WHERE user_id = ?', ['default_user']));
+      if (userCount == 0) {
+        print('Seed: Creating default user...');
+        await db.insert('users', {
+          'user_id': 'default_user',
+          'phone_or_email': 'user@example.com',
+          'display_name': 'Tantr',
+          'subscription_tier': 'premium',
+        });
+      }
+
+      // --- Robust Initialization (Seed if configs empty) ---
+      final configCount = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM user_channel_config WHERE user_id = ?', ['default_user']));
       if (configCount == 0) {
         print('Seed: Initializing default B2C backend data...');
         await db.insert('business_profile', {

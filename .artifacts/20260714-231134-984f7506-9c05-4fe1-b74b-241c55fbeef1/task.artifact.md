@@ -1,0 +1,21 @@
+# Tasks
+
+- [x] Researching Proxy Deployment
+    - [x] Locate `proxy/cloudflare-worker` directory
+    - [x] Inspect `wrangler.toml` and `index.js/ts` in the worker directory
+- [x] UI Optimization
+    - [x] Search for "GMV" in `micro_screen.dart`
+    - [x] Replace "GMV" with "Doanh thu" in user-facing labels
+    - [x] Refine `_formatNumber` for natural Vietnamese currency (e.g., "14tr300", "200 triệu")
+- [x] Web Deployment (Alternative)
+    - [x] Switch from Cloudflare to Firebase Hosting
+    - [x] Initialize Firebase configuration (`firebase.json`, `.firebaserc`)
+    - [x] Build Flutter Web release with proxy configuration
+    - [x] Deploy to Firebase Hosting (`finmatrixweb.web.app`)
+- [x] Data Integration
+    - [x] Obtain FastMoss App Secret
+    - [x] Configure direct API access with secret embedded in build
+    - [x] Re-deploy final version to Firebase
+- [x] Verification
+    - [x] Verify live URL: https://finmatrixweb.web.app
+    - [x] Finalize walkthrough document

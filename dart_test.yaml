@@ -1,0 +1,7 @@
+# Test runner config.
+# Declares the `live` tag (tests that make real network calls, e.g. Anthropic)
+# so `flutter test` doesn't warn about an unknown tag. These tests self-skip
+# unless a key is supplied via --dart-define=ANTHROPIC_API_KEY=sk-ant-...
+tags:
+  live:
+

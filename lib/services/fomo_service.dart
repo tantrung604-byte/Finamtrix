@@ -8,20 +8,51 @@ class FomoService {
 
   /// Calculates the FOMO score based on the price history.
   /// Follows the logic from 01_fomo_score_spec.md
-  Future<void> calculateAndSaveFomoScore(String assetType) async {
+  ///
+  /// Supports multiple assets:
+  ///  - 'gold'  → gold_price_daily.price_sell (domestic only)
+  ///  - 'stock' → market_index_daily.close (default symbol VNINDEX)
+  ///  - 'rate'  → deposit_interest_rate.value (average 12m/13m)
+  Future<void> calculateAndSaveFomoScore(
+    String assetType, {
+    String indexSymbol = 'VNINDEX',
+  }) async {
     final db = await DatabaseHelper.instance.database;
-    
-    // 1. Get price history (last 90 days for z-score)
-    final prices = await db.query(
-      'gold_price_daily',
-      columns: ['price_sell'],
-      orderBy: 'date DESC',
-      limit: 90,
-    );
 
-    if (prices.isEmpty) return;
+    // 1. Get price history (last 90 days for z-score), newest first.
+    List<double> series;
+    if (assetType == 'stock') {
+      final rows = await db.query(
+        'market_index_daily',
+        columns: ['close'],
+        where: 'symbol = ?',
+        whereArgs: [indexSymbol],
+        orderBy: 'date DESC',
+        limit: 90,
+      );
+      series = rows.map((r) => (r['close'] as num).toDouble()).toList();
+    } else if (assetType == 'rate') {
+      final rows = await db.rawQuery(
+        'SELECT AVG(value) as avg_value FROM deposit_interest_rate '
+        'WHERE duration_months = 12 OR duration_months = 13 '
+        'GROUP BY effective_date ORDER BY effective_date DESC LIMIT 90'
+      );
+      series = rows.map((r) => (r['avg_value'] as num).toDouble()).toList();
+    } else {
+      final rows = await db.query(
+        'gold_price_daily',
+        columns: ['price_sell'],
+        where: 'type = ?',
+        whereArgs: ['domestic'],
+        orderBy: 'date DESC',
+        limit: 90,
+      );
+      series = rows.map((r) => (r['price_sell'] as num).toDouble()).toList();
+    }
 
-    final daysOfData = prices.length;
+    if (series.isEmpty) return;
+
+    final daysOfData = series.length;
     double? fomoScore;
     String calculationMode;
     String? zone;
@@ -29,8 +60,8 @@ class FomoService {
 
     // Calculate 7-day change for R1
     if (daysOfData >= 7) {
-      final currentPrice = (prices[0]['price_sell'] as num).toDouble();
-      final price7dAgo = (prices[6]['price_sell'] as num).toDouble();
+      final currentPrice = series[0];
+      final price7dAgo = series[6];
       change7dPct = ((currentPrice - price7dAgo) / price7dAgo) * 100;
     }
 
@@ -45,7 +76,7 @@ class FomoService {
     } else {
       // Phase 3: Z-score calculation
       calculationMode = 'zscore';
-      fomoScore = _calculateZScore(prices.map((p) => (p['price_sell'] as num).toDouble()).toList());
+      fomoScore = _calculateZScore(series);
     }
 
     if (fomoScore != null) {

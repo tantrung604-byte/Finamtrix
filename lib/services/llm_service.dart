@@ -1,63 +1,95 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
-import 'ollama_service.dart';
 
+import 'ai/ai_provider.dart';
+import 'ai/anthropic_provider.dart';
+
+/// Facade over the pluggable [AiProvider] registry.
+///
+/// Routing (Opus vs Sonnet, decision vs synthesis) still lives in
+/// `AiGatewayService`; this class owns provider selection, credential handling
+/// (via `SecureConfigService` inside each provider) and prompt construction.
 class LlmService {
-  static final LlmService instance = LlmService._init();
   LlmService._init();
+  static final LlmService instance = LlmService._init();
 
-  static const String _model = 'claude-opus-4-8';
-  static const String _anthropicVersion = '2023-06-01';
+  /// Test seam: allows overriding the default provider registry.
+  factory LlmService.withProviders(
+    Map<String, AiProvider> providers, {
+    String defaultProviderId = 'anthropic',
+  }) {
+    final svc = LlmService._init();
+    svc._providers
+      ..clear()
+      ..addAll(providers);
+    svc._defaultProviderId = defaultProviderId;
+    return svc;
+  }
+
+  /// High-capability model for strategic DECISIONS (đưa ra quyết định).
+  static const String modelOpus = 'claude-3-opus-latest';
+
+  /// Faster model for routine data synthesis & planning (tổng hợp số liệu, lên plan).
+  static const String modelSonnet = 'claude-3-5-sonnet-latest';
+
+  /// Sonnet model used by the TikTok CMO advisory flow (fast + cheap).
+  /// Updated to use valid Anthropic model IDs. Previous placeholders like
+  /// 'claude-sonnet-4-5' returned 404, forcing mocks.
+  static const String modelSonnetCmo = 'claude-3-5-sonnet-latest';
+
+  /// Registry of available model vendors. New providers plug in here.
+  final Map<String, AiProvider> _providers = {
+    'anthropic': AnthropicProvider(),
+  };
+  String _defaultProviderId = 'anthropic';
+
+  AiProvider get _provider => _providers[_defaultProviderId]!;
+
+  /// Exposed for UI/diagnostics.
+  String get activeProviderName => _provider.displayName;
+
+  /// Lightweight credential/connectivity check for the active provider.
+  Future<({bool ok, String message})> testConnection({
+    String? apiKeyOverride,
+    String model = modelSonnet,
+  }) async {
+    final health =
+        await _provider.ping(model: model, apiKeyOverride: apiKeyOverride);
+    return (ok: health.ok, message: health.message);
+  }
 
   /// Internal method used by AiGatewayService to access Cloud AI.
-  /// In production, this would be a real server-to-server call.
-  Future<String?> generateCloudChatResponse(String systemPrompt, String userMessage) async {
-    return await _generateCloudResponse(systemPrompt, userMessage);
+  Future<String?> generateCloudChatResponse(
+    String systemPrompt,
+    String userMessage, {
+    String model = modelSonnet,
+  }) async {
+    return _complete(systemPrompt, userMessage, model: model);
   }
 
-  /// Cloud AI (Opus) is reserved for critical business suggestions, triggered via Gateway
-  Future<String?> generateSuggestion(String ruleId, Map<String, dynamic> data) async {
+  /// Cloud AI is reserved for critical business suggestions, triggered via Gateway.
+  /// [model] lets the gateway pick Opus (decisions) vs Sonnet (synthesis/plan).
+  Future<String?> generateSuggestion(
+    String ruleId,
+    Map<String, dynamic> data, {
+    String model = modelSonnet,
+  }) async {
     final systemPrompt = _getSystemPrompt(ruleId);
     final userMessage = jsonEncode(data);
-    return await _generateCloudResponse(systemPrompt, userMessage);
+    return _complete(systemPrompt, userMessage, model: model);
   }
 
-  Future<String?> _generateCloudResponse(String systemPrompt, String userMessage) async {
-    final prefs = await SharedPreferences.getInstance();
-    final apiKey = prefs.getString('anthropic_api_key');
-
-    if (apiKey == null || apiKey.isEmpty) return null;
-
-    try {
-      final response = await http.post(
-        Uri.parse('https://api.anthropic.com/v1/messages'),
-        headers: {
-          'x-api-key': apiKey,
-          'anthropic-version': _anthropicVersion,
-          'content-type': 'application/json',
-        },
-        body: jsonEncode({
-          'model': _model,
-          'max_tokens': 1024,
-          'system': systemPrompt,
-          'messages': [
-            {'role': 'user', 'content': userMessage}
-          ],
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        final result = jsonDecode(response.body);
-        return result['content'][0]['text'] as String;
-      } else {
-        print('LLM Error: ${response.body}');
-        return null;
-      }
-    } catch (e) {
-      print('LLM Exception: $e');
-      return null;
-    }
+  Future<String?> _complete(
+    String systemPrompt,
+    String userMessage, {
+    required String model,
+  }) async {
+    final result = await _provider.complete(
+      systemPrompt: systemPrompt,
+      userMessage: userMessage,
+      model: model,
+    );
+    // Null on any failure → callers fall back to AiMockService.
+    return result.ok ? result.text : null;
   }
 
   String _getSystemPrompt(String ruleId) {

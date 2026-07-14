@@ -1,46 +1,78 @@
 <!DOCTYPE html>
-<html>
+<html lang="vi">
 <head>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="FinMatrix — Trợ lý tài chính & AI CMO cho kinh doanh B2C: vĩ mô, vi mô, xu hướng ngành hàng TikTok Shop.">
+
+  <!-- Responsive viewport (bắt buộc cho mobile web) -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0A0E1A">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="finmatrix_flutter">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="FinMatrix">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>finmatrix_flutter</title>
+  <title>FinMatrix — AI CMO & Xu hướng ngành hàng</title>
   <link rel="manifest" href="manifest.json">
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background: #0A0E1A;
+      overscroll-behavior: none; /* chặn pull-to-refresh ngoài ý muốn trên mobile */
+    }
+    /* Màn hình chờ trong lúc Flutter khởi động */
+    #loading {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      background: radial-gradient(1200px 600px at 50% -10%, #14203a 0%, #0A0E1A 55%);
+      color: #E6EAF2;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      z-index: 9999;
+      transition: opacity .35s ease;
+    }
+    #loading .logo { font-size: 44px; }
+    #loading .name { font-size: 18px; font-weight: 700; letter-spacing: .5px; }
+    #loading .spinner {
+      width: 28px; height: 28px;
+      border: 3px solid rgba(255,255,255,.15);
+      border-top-color: #22D3EE;
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
 </head>
 <body>
-  <!--
-    You can customize the "flutter_bootstrap.js" script.
-    This is useful to provide a custom configuration to the Flutter loader
-    or to give the user feedback during the initialization process.
+  <div id="loading">
+    <div class="logo">💹</div>
+    <div class="name">FinMatrix</div>
+    <div class="spinner"></div>
+  </div>
 
-    For more details:
-    * https://docs.flutter.dev/platform-integration/web/initialization
-  -->
+  <script>
+    // Ẩn màn hình chờ khi Flutter render frame đầu tiên.
+    window.addEventListener('flutter-first-frame', function () {
+      var el = document.getElementById('loading');
+      if (el) { el.style.opacity = '0'; setTimeout(function(){ el.remove(); }, 400); }
+    });
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

@@ -11,9 +11,16 @@ class OllamaService {
   static const String _defaultModel = 'llama3.2:1b';
 
   Future<String?> generateLocalResponse(String prompt) async {
-    final prefs = await SharedPreferences.getInstance();
-    final baseUrl = prefs.getString('ollama_base_url') ?? _defaultBaseUrl;
-    final model = prefs.getString('ollama_model') ?? _defaultModel;
+    String baseUrl = _defaultBaseUrl;
+    String model = _defaultModel;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      baseUrl = prefs.getString('ollama_base_url') ?? _defaultBaseUrl;
+      model = prefs.getString('ollama_model') ?? _defaultModel;
+    } catch (e) {
+      print('Ollama Config Exception: $e');
+      return null;
+    }
 
     try {
       final response = await http.post(
@@ -41,9 +48,16 @@ class OllamaService {
 
   /// Streams the response for a better UI experience
   Stream<String> streamLocalResponse(String prompt) async* {
-    final prefs = await SharedPreferences.getInstance();
-    final baseUrl = prefs.getString('ollama_base_url') ?? _defaultBaseUrl;
-    final model = prefs.getString('ollama_model') ?? _defaultModel;
+    String baseUrl = _defaultBaseUrl;
+    String model = _defaultModel;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      baseUrl = prefs.getString('ollama_base_url') ?? _defaultBaseUrl;
+      model = prefs.getString('ollama_model') ?? _defaultModel;
+    } catch (e) {
+      print('Ollama Config Exception: $e');
+      return;
+    }
 
     try {
       final request = http.Request('POST', Uri.parse('$baseUrl/generate'))

@@ -1,10 +1,10 @@
 import 'dart:math';
 import 'dart:convert';
 import 'database_helper.dart';
-import 'fomo_service.dart';
 import 'forecast_service.dart';
 import 'ai_gateway_service.dart';
 import 'facebook_competitor_service.dart';
+import 'macro_micro_link_service.dart';
 
 class AiCmoEngine {
   static final AiCmoEngine instance = AiCmoEngine._init();
@@ -35,7 +35,7 @@ class AiCmoEngine {
           ) AND record_date LIKE ?
         ''', [userId, channel['channel_key'], '$yearMonth%']);
 
-        final actualOrders = (actualResult.first['total'] as num ?? 0).toDouble();
+        final actualOrders = ((actualResult.first['total'] as num?) ?? 0).toDouble();
         
         // Progress expected (simplified: 1/30 per day)
         final dayOfMonth = DateTime.now().day;
@@ -93,6 +93,23 @@ class AiCmoEngine {
 
     // --- R5: Missing Data Reminder ---
     // ... (existing R5 code) ...
+
+    // --- R8: Macro -> Micro Purchasing Power (USP link) ---
+    final macroImpact = await MacroMicroLinkService.instance.computeImpact();
+    if (macroImpact.hasImpact &&
+        macroImpact.severity.index >= MacroImpactSeverity.medium.index) {
+      suggestions.add({
+        'rule_id': 'R8_macro_purchasing_power',
+        'priority': macroImpact.severity == MacroImpactSeverity.high ? 'high' : 'medium',
+        'data': {
+          'asset': 'Vàng',
+          'zone': macroImpact.zone,
+          'fomo_score': macroImpact.fomoScore,
+          'drop_pct': macroImpact.deltaPct.abs(),
+          'insight': macroImpact.message,
+        }
+      });
+    }
 
     // --- R7: Competitor Strategy Alert (NEW) ---
     // Find keywords based on user business type or channel labels
@@ -154,7 +171,7 @@ class AiCmoEngine {
     }
 
     final Map<String, dynamic> logEntry = {
-      'id': DateTime.now().millisecondsSinceEpoch.toString(),
+      'id': '${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(1 << 20)}',
       'user_id': userId,
       'rule_id': sug['rule_id'],
       'generated_date': DateTime.now().toIso8601String().split('T')[0],

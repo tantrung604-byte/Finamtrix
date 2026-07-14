@@ -1,4 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Required for live market data (gold: vang.today, stock index: VCI) and AI APIs. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="finmatrix_flutter"
         android:name="${applicationName}"

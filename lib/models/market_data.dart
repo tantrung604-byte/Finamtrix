@@ -85,5 +85,21 @@ class MarketData {
       badgeBg: const Color(0xFFFF9100).withOpacity(0.12),
       badgeTextColor: const Color(0xFFFF9100),
     ),
+    MarketAsset(
+      id: 'rate',
+      name: 'Lãi suất gửi',
+      price: '5.2%',
+      change: '+0.1%',
+      up: true,
+      gaugeValue: 35,
+      history: [4.8, 4.9, 5.0, 5.1, 5.0, 5.2, 5.3, 5.2, 5.1, 5.0, 5.2, 5.2, 5.2, 5.2],
+      weekData: [5.0, 5.1, 5.2, 5.2, 5.2, 5.2, 5.2],
+      gaugeTitle: 'Nhiệt độ Lãi suất',
+      chartTitle: 'Biểu đồ Lãi suất (12 tháng)',
+      color: const Color(0xFF00B0FF),
+      badgeText: '✅ ỔN ĐỊNH',
+      badgeBg: const Color(0xFF00E676).withOpacity(0.12),
+      badgeTextColor: const Color(0xFF00E676),
+    ),
   ];
 }

@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_theme.dart';
+import '../utils/responsive.dart';
 import '../widgets/glass_card.dart';
+import '../services/llm_service.dart';
+import '../services/secure_config_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -15,7 +18,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final TextEditingController _apiKeyController = TextEditingController();
   final TextEditingController _apifyTokenController = TextEditingController();
   final TextEditingController _ollamaUrlController = TextEditingController();
+  final TextEditingController _wifeedApiKeyController = TextEditingController();
+  final TextEditingController _fastmossTokenController = TextEditingController();
+  final TextEditingController _fastmossAppIdController = TextEditingController();
+  final TextEditingController _fastmossSecretController = TextEditingController();
   bool _useLocalAi = true;
+  bool _testingConnection = false;
+  bool _apiKeyFromEnv = false;
+  bool _fastmossFromEnv = false;
+  bool _fastmossSignedFromEnv = false;
 
   @override
   void initState() {
@@ -25,19 +36,57 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _loadApiKey() async {
     final prefs = await SharedPreferences.getInstance();
+    // Anthropic key now comes from encrypted secure storage / build-time env.
+    final anthropicKey = await SecureConfigService.instance.getAnthropicKey();
+    final fromEnv = SecureConfigService.instance.isAnthropicKeyFromEnv;
+    // FastMoss token also moved to encrypted secure storage / build-time env.
+    final fastmossToken = await SecureConfigService.instance.getFastmossToken();
+    final fmFromEnv = SecureConfigService.instance.isFastmossTokenFromEnv;
+    // FastMoss signed Open API credentials (App ID + App Secret).
+    final fastmossAppId = await SecureConfigService.instance.getFastmossAppId();
+    final fmSignedFromEnv =
+        SecureConfigService.instance.isFastmossSignedCredsFromEnv;
     setState(() {
-      _apiKeyController.text = prefs.getString('anthropic_api_key') ?? '';
+      _apiKeyController.text = fromEnv ? '' : (anthropicKey ?? '');
+      _apiKeyFromEnv = fromEnv;
       _apifyTokenController.text = prefs.getString('apify_api_token') ?? '';
       _ollamaUrlController.text = prefs.getString('ollama_base_url') ?? 'http://localhost:11434/api';
+      _wifeedApiKeyController.text = prefs.getString('wifeed_apikey') ?? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTQ0MywiZW1haWwiOiJ0YW50cnVuZzYwNEBnbWFpbC5jb20iLCJuYW1lIjoiVsWpIE5ndXnhu4VuIFThuqVuIFRydW5nIiwicGhvbmUiOiIrODQ5MTg3Mjg1OTUiLCJjb21wYW55IjoiT2x5bXBpYSBUcmF2ZWwiLCJyb2xlIjoidXNlciIsImlhdCI6MTc4MjY5MTYzOX0.5p9tCW3qvyrKVPOvK4tompI__Qnime11YIFcb9c1KWo';
+      _fastmossTokenController.text = fmFromEnv ? '' : (fastmossToken ?? '');
+      _fastmossFromEnv = fmFromEnv;
+      _fastmossAppIdController.text =
+          fmSignedFromEnv ? '' : (fastmossAppId ?? '');
+      _fastmossSignedFromEnv = fmSignedFromEnv;
       _useLocalAi = prefs.getBool('use_local_ai_for_chat') ?? true;
     });
   }
 
   Future<void> _saveConfigs() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('anthropic_api_key', _apiKeyController.text);
+    // Anthropic key → encrypted secure storage (skip when fixed by env var).
+    if (!_apiKeyFromEnv) {
+      await SecureConfigService.instance.setAnthropicKey(_apiKeyController.text);
+    }
+    // FastMoss token → encrypted secure storage (skip when fixed by env var).
+    if (!_fastmossFromEnv) {
+      await SecureConfigService.instance
+          .setFastmossToken(_fastmossTokenController.text);
+    }
+    // FastMoss signed Open API creds → encrypted storage (skip when env-fixed).
+    if (!_fastmossSignedFromEnv) {
+      await SecureConfigService.instance
+          .setFastmossAppId(_fastmossAppIdController.text);
+      // Only overwrite the secret when the user actually typed one, so an empty
+      // field doesn't wipe a previously-saved secret unintentionally.
+      if (_fastmossSecretController.text.trim().isNotEmpty) {
+        await SecureConfigService.instance
+            .setFastmossSecret(_fastmossSecretController.text);
+        _fastmossSecretController.clear();
+      }
+    }
     await prefs.setString('apify_api_token', _apifyTokenController.text);
     await prefs.setString('ollama_base_url', _ollamaUrlController.text);
+    await prefs.setString('wifeed_apikey', _wifeedApiKeyController.text.trim());
     await prefs.setBool('use_local_ai_for_chat', _useLocalAi);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -46,12 +95,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  /// Validates the Anthropic key currently typed in the field by making a
+  /// minimal live request. Saves first so the key is persisted regardless.
+  Future<void> _testAiConnection() async {
+    HapticFeedback.lightImpact();
+    final key = _apiKeyController.text.trim();
+    if (key.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vui lòng nhập Anthropic API Key trước.')),
+      );
+      return;
+    }
+
+    setState(() => _testingConnection = true);
+    final result = await LlmService.instance.testConnection(apiKeyOverride: key);
+    if (!mounted) return;
+    setState(() => _testingConnection = false);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(result.message),
+        backgroundColor: result.ok ? AppTheme.brandCyan : AppTheme.colorHot,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+        padding: EdgeInsets.symmetric(horizontal: context.pagePadding, vertical: 12.0),
         child: Column(
           children: [
             const SizedBox(height: 24),
@@ -68,7 +142,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       shape: BoxShape.circle,
                     ),
                     child: const Text(
-                      'T',
+                      'A',
                       style: TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -78,7 +152,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   const SizedBox(height: 12),
                   const Text(
-                    'Trần Minh Tuấn',
+                    'A Trung Travel',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -87,7 +161,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   const SizedBox(height: 4),
                   const Text(
-                    'tuan.tran@email.com',
+                    'trung.travel@email.com',
                     style: TextStyle(
                       fontSize: 12.5,
                       color: AppTheme.textSecondary,
@@ -270,147 +344,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
               ],
-            ),
-            const SizedBox(height: 24),
-
-            // 3.5 AI Configuration
-            const Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                '🤖 Cấu hình AI CMO (Opus 4.8)',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.textPrimary,
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            GlassCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Anthropic API Key',
-                    style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _apiKeyController,
-                    obscureText: true,
-                    style: const TextStyle(color: AppTheme.textPrimary, fontSize: 13),
-                    decoration: InputDecoration(
-                      hintText: 'sk-ant-api03-...',
-                      hintStyle: const TextStyle(color: AppTheme.textTertiary),
-                      filled: true,
-                      fillColor: Colors.white.withOpacity(0.04),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Apify API Token (Facebook Scraping)',
-                    style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _apifyTokenController,
-                    obscureText: true,
-                    style: const TextStyle(color: AppTheme.textPrimary, fontSize: 13),
-                    decoration: InputDecoration(
-                      hintText: 'apify_api_...',
-                      hintStyle: const TextStyle(color: AppTheme.textTertiary),
-                      filled: true,
-                      fillColor: Colors.white.withOpacity(0.04),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  ElevatedButton(
-                    onPressed: _saveConfigs,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.brandCyan.withOpacity(0.2),
-                      foregroundColor: AppTheme.brandCyan,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
-                    child: const Text('Lưu cấu hình', style: TextStyle(fontWeight: FontWeight.bold)),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // 3.6 Local AI Configuration (Ollama)
-            const Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                '🏠 Cấu hình AI Local (Ollama)',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.textPrimary,
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            GlassCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Sử dụng Local cho Chat',
-                        style: TextStyle(fontSize: 13, color: AppTheme.textPrimary),
-                      ),
-                      Switch(
-                        value: _useLocalAi,
-                        activeColor: AppTheme.brandCyan,
-                        onChanged: (val) {
-                          setState(() => _useLocalAi = val);
-                        },
-                      ),
-                    ],
-                  ),
-                  const Text(
-                    'Tiết kiệm chi phí bằng cách dùng Llama 3.2 chạy tại máy cho các câu hỏi thông thường.',
-                    style: TextStyle(fontSize: 10.5, color: AppTheme.textSecondary),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Ollama API URL',
-                    style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _ollamaUrlController,
-                    style: const TextStyle(color: AppTheme.textPrimary, fontSize: 13),
-                    decoration: InputDecoration(
-                      hintText: 'http://localhost:11434/api',
-                      hintStyle: const TextStyle(color: AppTheme.textTertiary),
-                      filled: true,
-                      fillColor: Colors.white.withOpacity(0.04),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  ElevatedButton(
-                    onPressed: _saveConfigs,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white.withOpacity(0.1),
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
-                    child: const Text('Lưu AI Local', style: TextStyle(fontWeight: FontWeight.bold)),
-                  ),
-                ],
-              ),
             ),
             const SizedBox(height: 24),
 

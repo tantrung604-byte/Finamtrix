@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../theme/app_theme.dart';
+import '../utils/responsive.dart';
 import '../widgets/glass_card.dart';
 import '../models/chat_message.dart';
 import '../services/ai_cmo_engine.dart';
@@ -66,6 +67,10 @@ class _AiCmoScreenState extends State<AiCmoScreen> {
           title = 'Kế hoạch đối thủ';
           color = Colors.redAccent;
           emoji = '⚔️';
+        } else if (s['rule_id'] == 'R8_macro_purchasing_power') {
+          title = 'Vĩ mô → Sức mua';
+          color = Colors.tealAccent;
+          emoji = '🔗';
         }
 
         return {
@@ -128,10 +133,21 @@ class _AiCmoScreenState extends State<AiCmoScreen> {
     _scrollToBottom();
 
     // Determine task type based on content (Simulating Backend Logic)
+    final String lower = text.toLowerCase();
     String taskType = 'chat';
-    if (text.toLowerCase().contains('plan') || 
-        text.toLowerCase().contains('kế hoạch') || 
-        text.toLowerCase().contains('marketing')) {
+    if (lower.contains('quyết định') ||
+        lower.contains('có nên') ||
+        lower.contains('nên ') ||
+        lower.contains('hay không') ||
+        lower.contains('lựa chọn') ||
+        lower.contains('chốt') ||
+        lower.contains('nên hay')) {
+      // Yêu cầu ra QUYẾT ĐỊNH -> Opus 4.8
+      taskType = 'strategic_decision';
+    } else if (lower.contains('plan') ||
+        lower.contains('kế hoạch') ||
+        lower.contains('marketing')) {
+      // Tổng hợp số liệu & lập plan -> Sonnet 4.5
       taskType = 'marketing_plan';
     }
 
@@ -172,7 +188,12 @@ class _AiCmoScreenState extends State<AiCmoScreen> {
         children: [
           // 1. Chat Header
           Container(
-            padding: const EdgeInsets.only(left: 16, right: 16, top: 40, bottom: 12),
+            padding: EdgeInsets.only(
+              left: 16,
+              right: 16,
+              top: MediaQuery.paddingOf(context).top + 12,
+              bottom: 12,
+            ),
             decoration: BoxDecoration(
               color: AppTheme.bgSecondary,
               border: Border(
@@ -497,6 +518,9 @@ class _AiCmoScreenState extends State<AiCmoScreen> {
           ],
           Flexible(
             child: Container(
+              constraints: BoxConstraints(
+                maxWidth: context.screenWidth.clamp(0.0, Responsive.maxContentWidth) * 0.78,
+              ),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
                 color: isUser ? AppTheme.brandCyan.withOpacity(0.15) : AppTheme.glassBg,

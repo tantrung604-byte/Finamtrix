@@ -1,12 +1,12 @@
 {
-    "name": "finmatrix_flutter",
-    "short_name": "finmatrix_flutter",
+    "name": "FinMatrix — AI CMO & Xu hướng ngành hàng",
+    "short_name": "FinMatrix",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
-    "orientation": "portrait-primary",
+    "background_color": "#0A0E1A",
+    "theme_color": "#0A0E1A",
+    "description": "Trợ lý tài chính & AI CMO cho kinh doanh B2C: vĩ mô, vi mô, xu hướng ngành hàng TikTok Shop.",
+    "orientation": "any",
     "prefer_related_applications": false,
     "icons": [
         {

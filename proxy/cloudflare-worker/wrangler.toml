@@ -1,0 +1,8 @@
+name = "fastmoss-proxy"
+main = "worker.js"
+compatibility_date = "2026-01-01"
+
+# Secrets (đặt bằng lệnh, KHÔNG ghi vào file này):
+#   wrangler secret put FASTMOSS_APP_SECRET
+#   wrangler secret put FASTMOSS_APP_ID
+

@@ -2,57 +2,62 @@ import 'package:flutter/material.dart';
 
 class AppTheme {
   // Brand & Accent Colors
-  static const Color bgPrimary = Color(0xFF070B1E);
-  static const Color bgSecondary = Color(0xFF0D122F);
-  
-  static const Color brandCyan = Color(0xFF00D4FF);
+  static const Color brandCyan = Color(0xFF00E5FF);
   static const Color brandPurple = Color(0xFF7C4DFF);
+  static const Color brandGreen = Color(0xFF00E676);
+  static const Color brandGold = Color(0xFFFFD600);
+  static const Color brandOrange = Color(0xFFFF9100);
+  static const Color brandRed = Color(0xFFFF5252);
   
-  static const Color colorSafe = Color(0xFF00E676);
-  static const Color colorWarm = Color(0xFFFFCA28);
-  static const Color colorHot = Color(0xFFFF9100);
-  static const Color colorDanger = Color(0xFFFF5252);
-  static const Color colorGold = Color(0xFFFFD54F);
-  static const Color colorBds = Color(0xFF26C6DA);
-  static const Color colorStock = Color(0xFF7C4DFF);
-  
-  static const Color textPrimary = Color(0xFFF0F2FF);
-  static const Color textSecondary = Color(0x99F0F2FF);
-  static const Color textTertiary = Color(0x66F0F2FF);
+  static const Color bgPrimary = Color(0xFF050918);
+  static const Color bgSecondary = Color(0xFF0D1226);
+
+  // Compat for old code
+  static const Color colorSafe = brandGreen;
+  static const Color colorWarm = brandGold;
+  static const Color colorHot = brandOrange;
+  static const Color colorDanger = brandRed;
+  static const Color colorGold = brandGold;
+  static const Color colorBds = brandCyan;
+  static const Color colorStock = brandPurple;
+
+  static const Color textPrimary = Color(0xFFFFFFFF);
+  static const Color textSecondary = Color(0xFFB0B3B8);
+  static const Color textTertiary = Color(0xFF65676B);
 
   // Gradients
   static const LinearGradient brandGradient = LinearGradient(
-    colors: [Color(0xFF00C9FF), Color(0xFF0052D4)],
+    colors: [brandCyan, brandPurple],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 
   static const LinearGradient premiumGradient = LinearGradient(
-    colors: [Color(0xFF7C4DFF), Color(0xFF00D4FF)],
+    colors: [brandPurple, Color(0xFFB388FF)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 
   static const LinearGradient safeGradient = LinearGradient(
-    colors: [Color(0xFF00E676), Color(0xFF00C853)],
+    colors: [brandGreen, Color(0xFF00C853)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 
   static const LinearGradient warmGradient = LinearGradient(
-    colors: [Color(0xFFFFCA28), Color(0xFFFFA000)],
+    colors: [brandGold, Color(0xFFFFA000)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 
   static const LinearGradient hotGradient = LinearGradient(
-    colors: [Color(0xFFFF9100), Color(0xFFF4511E)],
+    colors: [brandOrange, Color(0xFFF4511E)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 
   static const LinearGradient dangerGradient = LinearGradient(
-    colors: [Color(0xFFFF5252), Color(0xFFD32F2F)],
+    colors: [brandRed, Color(0xFFD32F2F)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
@@ -77,6 +82,7 @@ class AppTheme {
   // Theme Data Definition
   static ThemeData get darkTheme {
     return ThemeData(
+      useMaterial3: true,
       brightness: Brightness.dark,
       scaffoldBackgroundColor: bgPrimary,
       primaryColor: brandCyan,
@@ -101,6 +107,25 @@ class AppTheme {
         unselectedItemColor: textTertiary,
         type: BottomNavigationBarType.fixed,
         elevation: 0,
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: bgPrimary,
+        indicatorColor: brandCyan.withValues(alpha: 0.15),
+        elevation: 0,
+        height: 64,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          final selected = states.contains(WidgetState.selected);
+          return IconThemeData(color: selected ? brandCyan : textTertiary, size: 24);
+        }),
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          final selected = states.contains(WidgetState.selected);
+          return TextStyle(
+            fontSize: 11,
+            fontWeight: selected ? FontWeight.bold : FontWeight.w500,
+            color: selected ? brandCyan : textTertiary,
+          );
+        }),
       ),
     );
   }

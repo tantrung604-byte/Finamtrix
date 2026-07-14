@@ -4,21 +4,46 @@ import '../theme/app_theme.dart';
 class ProjectionChart extends StatelessWidget {
   final double height;
 
+  /// Optional real scenario projections (raw values, any unit). When null,
+  /// a neutral placeholder is drawn.
+  final List<double>? optimistic;
+  final List<double>? realistic;
+  final List<double>? pessimistic;
+
   const ProjectionChart({
     Key? key,
     this.height = 200.0,
+    this.optimistic,
+    this.realistic,
+    this.pessimistic,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return CustomPaint(
       size: Size(double.infinity, height),
-      painter: _ProjectionPainter(),
+      painter: _ProjectionPainter(
+        optimistic: optimistic,
+        realistic: realistic,
+        pessimistic: pessimistic,
+      ),
     );
   }
 }
 
 class _ProjectionPainter extends CustomPainter {
+  final List<double>? optimisticIn;
+  final List<double>? realisticIn;
+  final List<double>? pessimisticIn;
+
+  _ProjectionPainter({
+    List<double>? optimistic,
+    List<double>? realistic,
+    List<double>? pessimistic,
+  })  : optimisticIn = optimistic,
+        realisticIn = realistic,
+        pessimisticIn = pessimistic;
+
   @override
   void paint(Canvas canvas, Size size) {
     final double w = size.width;
@@ -32,10 +57,10 @@ class _ProjectionPainter extends CustomPainter {
     final double chartW = w - padL - padR;
     final double chartH = h - padT - padB;
 
-    // Scenarios data
-    final List<double> optimistic = [200, 230, 265, 290, 320, 360];
-    final List<double> realistic  = [200, 210, 220, 225, 235, 245];
-    final List<double> pessimistic = [200, 185, 170, 160, 155, 150];
+    // Scenarios data — use real projections when provided, else placeholders.
+    final List<double> optimistic = optimisticIn ?? const [200, 230, 265, 290, 320, 360];
+    final List<double> realistic = realisticIn ?? const [200, 210, 220, 225, 235, 245];
+    final List<double> pessimistic = pessimisticIn ?? const [200, 185, 170, 160, 155, 150];
 
     final List<double> allVals = [...optimistic, ...realistic, ...pessimistic];
     final double minVal = allVals.reduce((a, b) => a < b ? a : b) * 0.95;
@@ -190,6 +215,8 @@ class _ProjectionPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _ProjectionPainter oldDelegate) {
-    return false;
+    return oldDelegate.optimisticIn != optimisticIn ||
+        oldDelegate.realisticIn != realisticIn ||
+        oldDelegate.pessimisticIn != pessimisticIn;
   }
 }

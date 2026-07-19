@@ -1150,19 +1150,28 @@ Hãy đưa ra 1 lời khuyên chiến lược marketing ngắn gọn và đặc 
   Widget _buildCategorySummaryCard() {
     final s = _categorySummary;
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.brandCyan.withOpacity(0.06),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.brandCyan.withOpacity(0.2)),
+        color: AppTheme.bgSecondary,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.brandCyan.withOpacity(0.3)),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.brandCyan.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Text('📦 Quy mô thị trường ngành',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.textPrimary)),
+              const Icon(Icons.analytics_outlined, size: 18, color: AppTheme.brandCyan),
+              const SizedBox(width: 8),
+              const Text('Quy mô thị trường ngành',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppTheme.textPrimary)),
               const Spacer(),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -1173,7 +1182,7 @@ Hãy đưa ra 1 lời khuyên chiến lược marketing ngắn gọn và đặc 
                 child: Text(
                   '${s.avgGrowthPct >= 0 ? '↑' : '↓'} ${s.avgGrowthPct.abs().toStringAsFixed(0)}% TB',
                   style: TextStyle(
-                    fontSize: 9.5,
+                    fontSize: 10,
                     fontWeight: FontWeight.bold,
                     color: s.avgGrowthPct >= 0 ? AppTheme.colorSafe : AppTheme.colorDanger,
                   ),
@@ -1181,44 +1190,87 @@ Hãy đưa ra 1 lời khuyên chiến lược marketing ngắn gọn và đặc 
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 20),
+          // 2x2 Grid for Metrics
           Row(
             children: [
-              _buildSummaryMetric('Tổng doanh thu', _formatNumber(s.totalGmvVnd), AppTheme.brandCyan),
-              _buildSummaryMetric('Lượt bán', _formatNumber(s.totalSales.toDouble()), AppTheme.colorWarm),
-              _buildSummaryMetric('Giá TB', '${_formatNumber(s.avgPriceVnd)}đ', AppTheme.textPrimary),
-              _buildSummaryMetric('Hoa hồng', '${s.avgCommissionPct.toStringAsFixed(0)}%', AppTheme.colorSafe),
+              Expanded(child: _buildProfessionalMetric('Tổng doanh thu', _formatNumber(s.totalGmvVnd), Icons.monetization_on_outlined, AppTheme.brandCyan)),
+              Expanded(child: _buildProfessionalMetric('Lượt bán', _formatNumber(s.totalSales.toDouble()), Icons.shopping_cart_outlined, AppTheme.colorWarm)),
             ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            '💡 Gợi ý: giá bán quanh ${_formatNumber(s.avgPriceVnd)}đ; hoa hồng ~${s.avgCommissionPct.toStringAsFixed(0)}% đủ hấp dẫn KOC. '
-            'Dùng số này để đặt AOV & phân bổ ngân sách Affiliate.',
-            style: const TextStyle(fontSize: 9.5, color: AppTheme.textSecondary, height: 1.4, fontStyle: FontStyle.italic),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(child: _buildProfessionalMetric('Giá TB', '${_formatNumber(s.avgPriceVnd)}đ', Icons.sell_outlined, AppTheme.textPrimary)),
+              Expanded(child: _buildProfessionalMetric('Hoa hồng', '${s.avgCommissionPct.toStringAsFixed(0)}%', Icons.percent_outlined, AppTheme.colorSafe)),
+            ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 16),
+          const Divider(color: Colors.white10),
+          const SizedBox(height: 12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('💡 ', style: TextStyle(fontSize: 14)),
+              Expanded(
+                child: Text(
+                  'Gợi ý: giá bán quanh ${_formatNumber(s.avgPriceVnd)}đ; hoa hồng ~${s.avgCommissionPct.toStringAsFixed(0)}% đủ hấp dẫn KOC. Dùng số này để đặt AOV & phân bổ ngân sách Affiliate.',
+                  style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary, height: 1.4, fontStyle: FontStyle.italic),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
           // Apply category Doanh thu → monthly revenue target (1% market share).
           GestureDetector(
             onTap: () => _applyGmvToTarget(s),
             child: Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 10),
+              padding: const EdgeInsets.symmetric(vertical: 12),
               decoration: BoxDecoration(
                 gradient: AppTheme.brandGradient,
                 borderRadius: BorderRadius.circular(10),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppTheme.brandCyan.withOpacity(0.2),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
               child: Center(
                 child: Text(
                   '🎯 Áp 1% thị phần → Mục tiêu ${_formatNumber(s.monthlyGmvVnd * 0.01)}/tháng',
-                  style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Colors.black),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black),
                 ),
               ),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildProfessionalMetric(String label, String value, IconData icon, Color color) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, size: 16, color: color),
+        ),
+        const SizedBox(width: 10),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: const TextStyle(fontSize: 9, color: AppTheme.textTertiary)),
+            Text(value, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: color)),
+          ],
+        ),
+      ],
     );
   }
 
@@ -1240,22 +1292,6 @@ Hãy đưa ra 1 lời khuyên chiến lược marketing ngắn gọn và đặc 
     );
   }
 
-  Widget _buildSummaryMetric(String label, String value, Color color) {
-    return Expanded(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: color)),
-          ),
-          const SizedBox(height: 2),
-          Text(label, style: const TextStyle(fontSize: 9, color: AppTheme.textTertiary)),
-        ],
-      ),
-    );
-  }
 
   Widget _buildCreatorCard(FastmossCreatorTrend c) {
     return Container(
